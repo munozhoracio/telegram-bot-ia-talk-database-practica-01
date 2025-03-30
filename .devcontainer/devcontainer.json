@@ -29,7 +29,7 @@
 
 
 	// Use 'postCreateCommand' to run commands after the container is created.
-	"postCreateCommand": "sudo apt-get update && sudo apt-get install -y postgresql-client && pip3 install -r requirements.txt",
+	"postCreateCommand": "sudo apt-get update && sudo apt-get install -y postgresql-client && pip3 install -r requirements.txt && sudo usermod -aG docker $(whoami) && newgrp docker && sudo chmod 666 /var/run/docker.sock",
 	// mount the docker socket to be able to run docker commands
 	"mounts": [
 		"source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
