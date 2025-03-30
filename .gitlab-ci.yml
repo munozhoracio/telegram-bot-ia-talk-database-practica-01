@@ -1,0 +1,96 @@
+variables:
+  DOCKER_TLS_CERTDIR: "/certs"
+  IMAGE: ${CI_REGISTRY}/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}:${CI_COMMIT_SHORT_SHA}
+
+before_script:
+  - echo $CI_JOB_STAGE
+
+stages:
+  - testing
+  - quality
+  - build
+  - scanning
+  - summary
+
+testing:
+  image: alpine
+  stage: testing
+  script:
+    - echo $CI_JOB_STAGE
+  artifacts:
+    paths:
+      - coverage.xml
+      - report.xml
+  only:
+    - main
+    - practica-01
+
+sonarqube:
+  image: alpine
+  stage: quality
+  variables:
+    SONAR_PROJECT_BASE_DIR: "./"
+  script:
+    - echo "Ejecutando sonarqube"
+  dependencies:
+    - testing
+  only:
+    - main
+    - practica-01
+
+docker-build:
+  image:
+      name: docker:28.0.2
+  # services Dind es necesario para ejecutar Docker
+  services:
+    - docker:28.0.2-dind
+  stage: build
+  script:
+   - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+   - echo $CI_JOB_STAGE
+  only:
+    - main
+    - practica-01
+
+scanning:
+  stage: scanning
+  variables:
+    # TRIVY necesita User y Pass para poder acceder a la Imagen
+    TRIVY_USERNAME: ${CI_REGISTRY_USER}
+    TRIVY_PASSWORD: ${CI_REGISTRY_PASSWORD}
+  image:
+    name: alpine
+    entrypoint: [ "" ]
+  dependencies:
+    - docker-build
+  cache:
+    key: trivy-cache
+    paths:
+      - .cache
+  script:
+    - echo $CI_JOB_STAGE
+  artifacts:
+    paths:
+      - scanning-report.json # gitlab-codequality
+      - gl-dependency-scanning-report.json # spdx-json
+  only:
+    - main
+    - practica-01
+
+
+pages:
+  stage: summary
+  image: alpine
+  script:
+    - echo $CI_JOB_STAGE
+    - mkdir -p public
+    - echo "<html><body><h1>Hola Mundo</h1></body></html>" > public/index.html
+  dependencies:
+    - testing
+    - scanning
+  artifacts:
+    paths:
+      - public
+  only:
+    - main
+    - practica-01
